@@ -1,0 +1,78 @@
+#include <BleMouse.h>
+
+// Xiao ESP32C6を「Microsoft製のBluetoothマウス」に見せかける設定
+// バッテリー残量80%として通知
+BleMouse bleMouse("Microsoft Bluetooth Mouse", "Microsoft", 80);
+
+// ========== 設定 ==========
+const long minWaitTime = 10000; // 10秒
+const long maxWaitTime = 180000; // 180秒
+const int rightClickChance = 5; // 右クリック確率(%)
+// ==========================
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Starting BLE Mouse...");
+  
+  // Bluetoothマウス機能の開始
+  bleMouse.begin();
+}
+
+void loop() {
+  // PCと接続されている時だけ動く（接続切れの時は待機）
+  if(bleMouse.isConnected()) {
+    
+    long wait = random(minWaitTime, maxWaitTime);
+    Serial.print("Waiting for ");
+    Serial.print(wait);
+    Serial.println(" ms");
+    delay(wait);
+
+    Serial.println("Performing Jiggle...");
+    performHumanAction();
+    
+  } else {
+    // 未接続時は2秒おきにチェック（省電力）
+    Serial.println("Not connected...");
+    delay(2000);
+  }
+}
+
+void performHumanAction() {
+  // ランダムな方向へ
+  float targetX = random(-300, 300);
+  float targetY = random(-300, 300);
+  int steps = 150;
+
+  float currentX = 0;
+  float currentY = 0;
+
+  for (int i = 0; i < steps; i++) {
+    // 全体の目標位置までの「理想の現在の位置」を計算
+    float idealX = (targetX * (i + 1)) / steps;
+    float idealY = (targetY * (i + 1)) / steps;
+
+    // 前回のステップからの差分（整数分）を算出
+    int moveX = (int)idealX - (int)currentX;
+    int moveY = (int)idealY - (int)currentY;
+
+    if (moveX != 0 || moveY != 0) {
+      bleMouse.move(moveX, moveY);
+    }
+
+    currentX = idealX;
+    currentY = idealY;
+    delay(10 + random(0, 5)); // 待ち時間も少し散らすと人間っぽい
+  }
+
+  // 右クリック動作（確率）
+  if (random(0, 100) < rightClickChance) {
+    Serial.println("Right Click!");
+    bleMouse.click(MOUSE_RIGHT);
+    delay(1000);
+    
+    // メニューを閉じるための空クリック
+    bleMouse.move(100, 100); // 少しずらす
+    bleMouse.click(MOUSE_LEFT);
+  }
+}
